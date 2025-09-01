@@ -119,5 +119,83 @@
       log("⏹ Stop requested...");
     }
   </script>
+
+  
+<script>
+  const reasonOptions = {
+    profile: ["Fake Account", "Impersonation", "Harassment", "Abusive"],
+    page: ["Misleading", "Scam", "Abusive Content"],
+    post: ["Violence", "Hate Speech", "Fake Info", "Nudity"],
+    photo: ["Nudity", "Violence", "Harassment"],
+    video: ["Copyright Violation", "Abusive Content", "Violence"],
+    story: ["Harassment", "Nudity", "Abusive"]
+  };
+
+  let selectedType = null;
+
+  document.querySelectorAll(".type-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedType = btn.dataset.type;
+
+      // Inject Reason dropdown
+      const reasonField = document.getElementById("reasonField");
+      reasonField.innerHTML = `
+        <label class="block text-sm font-medium">Reason</label>
+        <select name="reason" class="w-full border p-2 rounded">
+          ${reasonOptions[selectedType].map(r => `<option value="${r}">${r}</option>`).join("")}
+        </select>
+      `;
+    });
+  });
+
+  function log(msg, type = "log") {
+    const logs = document.getElementById("logs");
+    const color = type === "error" ? "red" : type === "success" ? "lime" : "white";
+    logs.innerHTML += `<span style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
+    logs.scrollTop = logs.scrollHeight;
+  }
+
+  // === SSE Listener ===
+  const evt = new EventSource("/events");
+  evt.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    log(`${data.type.toUpperCase()} → ${data.text}`, data.type);
+  };
+
+  async function startJob() {
+    const form = document.getElementById("reportForm");
+    const fd = new FormData(form);
+
+    if (!fd.get("targetUrl") || !fd.get("reason")) {
+      log("⚠️ Please enter URL & select reason", "error");
+      return;
+    }
+
+    log("🚀 Sending job request...");
+    const res = await fetch("/start-report", {
+      method: "POST",
+      body: fd
+    });
+
+    const json = await res.json();
+    if (json.ok) {
+      log("✅ Job started");
+    } else {
+      log("❌ Failed: " + json.message, "error");
+    }
+  }
+
+  async function stopJob() {
+    log("⏹ Sending stop request...");
+    const res = await fetch("/stop-report", { method: "POST" });
+    const json = await res.json();
+    if (json.ok) {
+      log("✅ Stopped");
+    }
+  }
+</script>
+  
 </body>
 </html>
