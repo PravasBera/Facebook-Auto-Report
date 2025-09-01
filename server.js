@@ -1,89 +1,133 @@
-const puppeteer = require("puppeteer");
+const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const puppeteer = require("puppeteer");
+const cors = require("cors");
+const multer = require("multer");
 
-// === Utils ===
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// === Load Cookies ===
-async function loadCookies(page, cookieFile) {
-  if (fs.existsSync(cookieFile)) {
-    const cookies = JSON.parse(fs.readFileSync(cookieFile, "utf-8"));
-    for (let cookie of cookies) {
-      await page.setCookie(cookie);
-    }
-    console.log(`✅ Cookies loaded for ${cookieFile}`);
-  } else {
-    console.log(`⚠️ No cookie file: ${cookieFile}`);
+// === Middlewares ===
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// === File Upload Setup ===
+const upload = multer({ dest: "cookies/" });
+
+// === SSE Clients ===
+const clients = new Set();
+function sendLog(type, text) {
+  const data = `data: ${JSON.stringify({ ts: Date.now(), type, text })}\n\n`;
+  for (const res of clients) {
+    res.write(data);
   }
 }
+app.get("/events", (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders();
+  clients.add(res);
+  sendLog("info", "SSE connected ✅");
+  req.on("close", () => clients.delete(res));
+});
 
-// === Save Cookies ===
-async function saveCookies(page, cookieFile) {
-  const cookies = await page.cookies();
-  fs.writeFileSync(cookieFile, JSON.stringify(cookies, null, 2));
-  console.log(`💾 Cookies saved: ${cookieFile}`);
-}
+// === Utils ===
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// === Report Flow (তুই এখানে নিজের selector বসাবি) ===
-async function reportPost(page, postUrl) {
-  console.log(`➡️ Visiting ${postUrl}`);
-  await page.goto(postUrl, { waitUntil: "domcontentloaded" });
-  await sleep(2000);
-
-  // Example → report menu open (⚠️ এখানে তোর সঠিক selector লাগবে)
+// === Report Flow ===
+async function reportFlow(page, url, reason) {
   try {
-    await page.click('text="Report post"');
-    await sleep(1000);
+    sendLog("info", `➡️ Visiting ${url}`);
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await sleep(3000);
 
-    // Example → abusive reason select (⚠️ এখানে তোর selector লাগবে)
-    await page.click('text="Abusive"');
+    // ⚠️ এখানে সঠিক selector বসাতে হবে
+    await page.click('text="Report"');
     await sleep(1000);
-
-    // Example → confirm
+    await page.click(`text="${reason}"`);
+    await sleep(1000);
     await page.click('text="Submit"');
     await sleep(2000);
 
-    console.log("✔ Report submitted!");
+    sendLog("success", `✔ Report submitted for ${reason}`);
     return true;
   } catch (e) {
-    console.log("❌ Report failed:", e.message);
+    sendLog("error", `❌ Failed: ${e.message}`);
     return false;
   }
 }
 
-// === Use One Account ===
-async function useAccount(cookieFile, postUrl) {
-  const browser = await puppeteer.launch({ headless: false });
-  const page = await browser.newPage();
-
-  // Load cookies
-  await loadCookies(page, cookieFile);
-
-  // Visit post & report
-  const ok = await reportPost(page, postUrl);
-
-  // Save cookies back (refresh session)
-  await saveCookies(page, cookieFile);
-
-  await browser.close();
-  return ok;
-}
-
-// === MAIN ===
-(async () => {
-  const postUrl = "https://www.facebook.com/123456789/posts/987654321"; // Target Post
-  const accountsDir = path.join(__dirname, "cookies");
-  const cookieFiles = fs.readdirSync(accountsDir).map(f => path.join(accountsDir, f));
-
-  console.log(`🚀 Starting job with ${cookieFiles.length} accounts...`);
+// === Main Runner ===
+async function runReports(cookieFiles, targetUrl, reason) {
+  sendLog("info", `🚀 Running job with ${cookieFiles.length} accounts...`);
 
   for (const file of cookieFiles) {
-    console.log(`\n=== Using account: ${file} ===`);
-    const result = await useAccount(file, postUrl);
-    console.log(result ? "✅ Success" : "❌ Failed");
-    await sleep(3000); // ছোট gap (bot detection avoid)
+    sendLog("info", `🔑 Using account: ${path.basename(file)}`);
+    try {
+      const browser = await puppeteer.launch({ headless: false });
+      const page = await browser.newPage();
+
+      // load cookies
+      const cookies = JSON.parse(fs.readFileSync(file, "utf-8"));
+      for (let c of cookies) await page.setCookie(c);
+
+      const ok = await reportFlow(page, targetUrl, reason);
+
+      if (ok) {
+        sendLog("success", `Done with ${path.basename(file)}`);
+      } else {
+        sendLog("warn", `Skipped ${path.basename(file)}`);
+      }
+
+      await browser.close();
+    } catch (err) {
+      sendLog("error", `Browser failed: ${err.message}`);
+    }
+    await sleep(3000);
   }
 
-  console.log("🎯 Job finished!");
-})();
+  sendLog("info", "🎯 Job finished!");
+}
+
+// === Start Job ===
+app.post("/start-report", upload.array("cookies"), async (req, res) => {
+  const { targetUrl, reason } = req.body;
+  if (!targetUrl || !reason) {
+    return res.status(400).json({ ok: false, message: "targetUrl & reason required" });
+  }
+
+  const cookieFiles = req.files.map((f) => f.path);
+  if (!cookieFiles.length) {
+    return res.status(400).json({ ok: false, message: "No cookies uploaded" });
+  }
+
+  res.json({ ok: true, message: "Job started" });
+  runReports(cookieFiles, targetUrl, reason);
+});
+
+// === Stop Job (future expand, abort flag) ===
+app.post("/stop-report", (req, res) => {
+  sendLog("warn", "⛔ Stop requested (not implemented yet)");
+  res.json({ ok: true });
+});
+
+// === Health ===
+app.get("/health", (req, res) => {
+  res.json({ ok: true });
+});
+
+// === Boot ===
+app.listen(PORT, () => console.log(`⚡ Server at http://localhost:${PORT}`));
+
+// === Crash Safe ===
+app.use((err, req, res, next) => {
+  console.error("❌ Error:", err);
+  res.status(500).json({ ok: false, message: err.message || "Server error" });
+});
+process.on("unhandledRejection", (r) => console.error("❌ Rejection:", r));
+process.on("uncaughtException", (e) => console.error("❌ Exception:", e));
