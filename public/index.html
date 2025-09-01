@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FB Auto Reporter Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .active { background-color: #2563eb; color: white; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+  <div class="flex h-screen">
+
+    <!-- Sidebar -->
+    <div class="w-64 bg-white shadow-lg p-4">
+      <h2 class="text-2xl font-bold mb-6">🚨 Report Type</h2>
+      <ul class="space-y-2">
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="profile">Profile</button></li>
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="page">Page</button></li>
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="post">Post</button></li>
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="photo">Photo</button></li>
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="video">Video</button></li>
+        <li><button class="type-btn w-full text-left px-3 py-2 rounded hover:bg-blue-100" data-type="story">Story</button></li>
+      </ul>
+    </div>
+
+    <!-- Main -->
+    <div class="flex-1 p-8 overflow-y-auto">
+      <h1 class="text-3xl font-bold mb-6">⚡ FB Auto Reporter</h1>
+
+      <!-- Dynamic Form -->
+      <form id="reportForm" class="space-y-4 bg-white p-6 rounded shadow">
+        <div>
+          <label class="block text-sm font-medium">Target URL / ID</label>
+          <input type="text" name="targetUrl" class="w-full border p-2 rounded" placeholder="https://facebook.com/... or ID" required />
+        </div>
+
+        <div id="reasonField">
+          <!-- Reason dropdown dynamically injected -->
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Upload Accounts (cookies.txt)</label>
+          <input type="file" name="cookies" class="w-full border p-2 rounded" multiple />
+        </div>
+
+        <div class="flex space-x-4">
+          <button type="button" onclick="startJob()" class="bg-blue-600 text-white px-4 py-2 rounded">▶ Start</button>
+          <button type="button" onclick="stopJob()" class="bg-red-600 text-white px-4 py-2 rounded">⏹ Stop</button>
+        </div>
+      </form>
+
+      <!-- Logs -->
+      <div class="mt-8">
+        <h2 class="text-xl font-bold mb-2">📜 Live Logs</h2>
+        <div id="logs" class="bg-black text-green-400 p-3 h-64 overflow-y-auto rounded text-sm font-mono"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const reasonOptions = {
+      profile: ["Fake Account", "Impersonation", "Harassment", "Abusive"],
+      page: ["Misleading", "Scam", "Abusive Content"],
+      post: ["Violence", "Hate Speech", "Fake Info", "Nudity"],
+      photo: ["Nudity", "Violence", "Harassment"],
+      video: ["Copyright Violation", "Abusive Content", "Violence"],
+      story: ["Harassment", "Nudity", "Abusive"]
+    };
+
+    let selectedType = null;
+
+    document.querySelectorAll(".type-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedType = btn.dataset.type;
+
+        // Inject Reason dropdown
+        const reasonField = document.getElementById("reasonField");
+        reasonField.innerHTML = `
+          <label class="block text-sm font-medium">Reason</label>
+          <select name="reason" class="w-full border p-2 rounded">
+            ${reasonOptions[selectedType].map(r => `<option value="${r}">${r}</option>`).join("")}
+          </select>
+        `;
+      });
+    });
+
+    function log(msg) {
+      const logs = document.getElementById("logs");
+      logs.innerHTML += msg + "<br>";
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    async function startJob() {
+      log("🚀 Starting report job...");
+      // এখানে fetch("/start") call করতে হবে server.js এর সাথে
+    }
+
+    async function stopJob() {
+      log("⏹ Stop requested...");
+      // এখানে fetch("/stop") call করতে হবে
+    }
+  </script>
+</body>
+</html>
