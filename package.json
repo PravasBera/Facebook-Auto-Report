@@ -1,0 +1,12 @@
+{
+  "name": "fb-auto-report",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "puppeteer": "^24.17.1",
+    "express": "^4.18.2"
+  }
+}
