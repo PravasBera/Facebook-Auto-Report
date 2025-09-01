@@ -8,12 +8,22 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
     .active { background-color: #2563eb; color: white; }
+    .app-header { background: linear-gradient(to right, #1e3a8a, #2563eb); color: white; padding: 1rem; text-align: center; }
+    .app-header h1 { font-size: 2rem; font-weight: bold; }
+    .team { margin-top: 5px; font-weight: bold; color: #facc15; }
+    .footer { background: #1f2937; color: #9ca3af; text-align: center; padding: 10px; margin-top: auto; }
   </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-100 flex flex-col min-h-screen">
 
-  <div class="flex h-screen">
+  <!-- 🔹 HEADER -->
+  <header class="app-header">
+    <h1>⚡ Facebook Auto Reoort Tool ⚡</h1>
+    <p>👤 Author: <b>PRAVAS BERA</b> &nbsp;|&nbsp; 🌍 Version: <b>1.0.0</b> &nbsp;|&nbsp; 🇮🇳 Country: <b>INDIA</b></p>
+    <p class="team">🔥 INDIAN DANGER OF BULLET TEAM 🔥</p>
+  </header>
 
+  <div class="flex flex-1">
     <!-- Sidebar -->
     <div class="w-64 bg-white shadow-lg p-4">
       <h2 class="text-2xl font-bold mb-6">🚨 Report Type</h2>
@@ -59,8 +69,12 @@
         <div id="logs" class="bg-black text-green-400 p-3 h-64 overflow-y-auto rounded text-sm font-mono"></div>
       </div>
     </div>
-
   </div>
+
+  <!-- 🔹 FOOTER -->
+  <footer class="footer">
+    © 2025 | Facebook Auto Report Tool | Developed With ❤️ by BULLET TEAM ☠️
+  </footer>
 
   <script>
     const reasonOptions = {
@@ -99,12 +113,10 @@
 
     async function startJob() {
       log("🚀 Starting report job...");
-      // এখানে fetch("/start") call করতে হবে server.js এর সাথে
     }
 
     async function stopJob() {
       log("⏹ Stop requested...");
-      // এখানে fetch("/stop") call করতে হবে
     }
   </script>
 </body>
